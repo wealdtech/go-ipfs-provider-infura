@@ -66,10 +66,33 @@ func handleBody(data []byte, res *map[string]interface{}) error {
 		// Nothing back is valid
 		return nil
 	}
+	data = bytes.TrimSpace(data)
 
+	// If there is more than 1 line then this is newline-delimited
+	if bytes.Contains(data, []byte{'\n'}) {
+		results := make([]*map[string]interface{}, 0)
+		for _, line := range bytes.Split(data, []byte{'\n'}) {
+			lineRes := make(map[string]interface{})
+			err := json.Unmarshal(line, &lineRes)
+			if err != nil {
+				if line[0] != '{' {
+					// Not JSON, return the plain text as the message
+					(*res)["message"] = strings.TrimSpace(string(data))
+					return nil
+				}
+				// Failed to unmarshal; return the raw value as an error
+				return errors.New(string(data))
+			}
+			results = append(results, &lineRes)
+		}
+		(*res)["results"] = results
+		return nil
+	}
+
+	// Single result
 	err := json.Unmarshal(data, &res)
 	if err != nil {
-		if len(data) > 0 && data[0] != '{' {
+		if data[0] != '{' {
 			// Not JSON, return the plain text as the message
 			(*res)["message"] = strings.TrimSpace(string(data))
 			return nil

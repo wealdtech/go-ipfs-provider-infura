@@ -7,49 +7,64 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	provider "github.com/wealdtech/go-ipfs-provider"
 )
 
 const (
-	testFileHash = "QmeeLUVdiSTTKQqhWqsffYDtNvvvcTfJdotkNyi1KDEJtQ"
+	testFileHash          = "QmeeLUVdiSTTKQqhWqsffYDtNvvvcTfJdotkNyi1KDEJtQ"
+	testFileDirectoryHash = "QmP7RfPwpB8GgK5zhqQYxDRerUBxqVPkNruvyck864cRwy"
 )
 
 func TestPinContent(t *testing.T) {
-	provider, err := NewProvider()
+	p, err := NewProvider()
 	require.Nil(t, err, "unexpected error")
 
 	file, err := os.Open("resources/testfile")
 	require.Nil(t, err, "unexpected error")
 
-	hash, err := provider.PinContent("test file", file)
+	hash, err := p.PinContent("test file", file, nil)
 	require.Nil(t, err, "unexpected error")
 
 	assert.Equal(t, testFileHash, hash)
 }
 
-func TestItemStats(t *testing.T) {
-	provider, err := NewProvider()
+func TestPinContentOpts(t *testing.T) {
+	p, err := NewProvider()
 	require.Nil(t, err, "unexpected error")
 
-	item, err := provider.ItemStats(testFileHash)
+	file, err := os.Open("resources/testfile")
+	require.Nil(t, err, "unexpected error")
+
+	hash, err := p.PinContent("testfile", file, &provider.ContentOpts{StoreInDirectory: true})
+	require.Nil(t, err, "unexpected error")
+
+	assert.Equal(t, testFileDirectoryHash, hash)
+}
+
+func TestItemStats(t *testing.T) {
+	p, err := NewProvider()
+	require.Nil(t, err, "unexpected error")
+
+	item, err := p.ItemStats(testFileHash)
 	require.Nil(t, err, "unexpected error")
 	assert.Equal(t, testFileHash, item.Hash)
 	assert.Equal(t, uint64(22), item.Size)
 }
 
 func TestItemStatsBadHash(t *testing.T) {
-	provider, err := NewProvider()
+	p, err := NewProvider()
 	require.Nil(t, err, "unexpected error")
 
-	_, err = provider.ItemStats("QmeeLUVdiSTTKQqhWqsffYDtNvvvcTfJdotkNyi1KD")
+	_, err = p.ItemStats("QmeeLUVdiSTTKQqhWqsffYDtNvvvcTfJdotkNyi1KD")
 	require.NotNil(t, err, "missing expected error")
 	require.Equal(t, "invalid path \"QmeeLUVdiSTTKQqhWqsffYDtNvvvcTfJdotkNyi1KD\": selected encoding not supported", err.Error())
 }
 
 func TestPin(t *testing.T) {
-	provider, err := NewProvider()
+	p, err := NewProvider()
 	require.Nil(t, err, "unexpected error")
 
-	err = provider.Pin(testFileHash)
+	err = p.Pin(testFileHash)
 	assert.Nil(t, err, "unexpected error")
 }
 
@@ -102,7 +117,7 @@ func TestGatewayURL(t *testing.T) {
 		},
 		{
 			name:   "IPNS URI",
-			input:  "ipNs://QmQ4QZh8nrsczdUEwTyfBope4THUhqxqc1fx6qYhhzZQei",
+			input:  "ipns://QmQ4QZh8nrsczdUEwTyfBope4THUhqxqc1fx6qYhhzZQei",
 			result: "https://ipfs.infura.io/ipns/QmQ4QZh8nrsczdUEwTyfBope4THUhqxqc1fx6qYhhzZQei",
 		},
 		{
@@ -132,12 +147,12 @@ func TestGatewayURL(t *testing.T) {
 		},
 	}
 
-	provider, err := NewProvider()
+	p, err := NewProvider()
 	require.Nil(t, err, "unexpected error")
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := provider.GatewayURL(test.input)
+			result, err := p.GatewayURL(test.input)
 			if test.err != nil {
 				require.NotNil(t, err, "failed to obtain expected error")
 				if err != nil {

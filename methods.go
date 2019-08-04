@@ -67,7 +67,7 @@ func (p *Provider) ServiceStats() (*provider.SiteStatistics, error) {
 }
 
 // PinContent pins content to this provider.
-func (p *Provider) PinContent(name string, content io.Reader) (string, error) {
+func (p *Provider) PinContent(name string, content io.Reader, opts *provider.ContentOpts) (string, error) {
 	var b bytes.Buffer
 	var contentType string
 
@@ -91,10 +91,27 @@ func (p *Provider) PinContent(name string, content io.Reader) (string, error) {
 		contentType = w.FormDataContentType()
 	}
 
-	res, err := p.post(fmt.Sprintf("%s/add?pin=true", baseURL), contentType, &b)
+	url := fmt.Sprintf("%s/add?pin=true", baseURL)
+	if opts != nil && opts.StoreInDirectory {
+		url = url + "&wrap-with-directory=true"
+	}
+	res, err := p.post(url, contentType, &b)
 	if err != nil {
 		return "", err
 	}
+
+	// If we pinned multiple files return the one without a name
+	results, exists := res["results"]
+	if exists {
+		for _, result := range results.([]*map[string]interface{}) {
+			name, exists := (*result)["Name"]
+			if exists && name == "" {
+				return (*result)["Hash"].(string), nil
+			}
+		}
+		return "", errors.New("no hash returned")
+	}
+
 	msg, exists := res["Hash"]
 	if exists {
 		return msg.(string), nil
